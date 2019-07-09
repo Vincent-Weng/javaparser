@@ -25,6 +25,8 @@ import com.github.javaparser.ast.*;
 import com.github.javaparser.ast.body.*;
 import com.github.javaparser.ast.comments.BlockComment;
 import com.github.javaparser.ast.comments.Comment;
+import com.github.javaparser.ast.comments.JMLComment;
+import com.github.javaparser.ast.comments.JMLInlineComment;
 import com.github.javaparser.ast.comments.JavadocComment;
 import com.github.javaparser.ast.comments.LineComment;
 import com.github.javaparser.ast.expr.*;
@@ -316,13 +318,16 @@ public class PrettyPrintVisitor implements VoidVisitor<Void> {
     @Override
     public void visit(final JavadocComment n, final Void arg) {
         if (configuration.isPrintComments() && configuration.isPrintJavadoc()) {
-            printer.println("/**");
+            if (n.getClass() == JMLComment.class)
+                printer.println("/*@");
+            else
+                printer.println("/**");
             final String commentContent = normalizeEolInTextBlock(n.getContent(), configuration.getEndOfLineCharacter());
             String[] lines = commentContent.split("\\R");
             List<String> strippedLines = new ArrayList<>();
             for (String line : lines) {
                 final String trimmedLine = line.trim();
-                if (trimmedLine.startsWith("*")) {
+                if (trimmedLine.startsWith((n.getClass() == JMLComment.class) ? "@" : "*")) {
                     line = trimmedLine.substring(1);
                 }
                 line = trimTrailingSpaces(line);
@@ -340,17 +345,17 @@ public class PrettyPrintVisitor implements VoidVisitor<Void> {
                 } else {
                     skippingLeadingEmptyLines = false;
                     if (prependEmptyLine) {
-                        printer.println(" *");
+                        printer.println((n.getClass() == JMLComment.class) ? "  @" : " *");
                         prependEmptyLine = false;
                     }
-                    printer.print(" *");
+                    printer.print((n.getClass() == JMLComment.class) ? "  @" : " *");
                     if (prependSpace) {
                         printer.print(" ");
                     }
                     printer.println(line);
                 }
             }
-            printer.println(" */");
+            printer.println((n.getClass() == JMLComment.class) ? "  @*/" : " */");
         }
     }
 
@@ -1505,7 +1510,10 @@ public class PrettyPrintVisitor implements VoidVisitor<Void> {
             printer.print(configuration.getEndOfLineCharacter()); // Avoids introducing indentation in blockcomments. ie: do not use println() as it would trigger indentation at the next print call.
         }
         printer.print(lines[lines.length - 1]); // last line is not followed by a newline, and simply terminated with `*/`
-        printer.println("*/");
+        if (n.getClass() == JMLInlineComment.class)
+            printer.print("*/ ");
+        else
+            printer.println("*/");
     }
 
     @Override
